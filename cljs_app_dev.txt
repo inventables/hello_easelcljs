@@ -1,0 +1,37 @@
+Ideal:
+
+  lein new easel-app "foo" API_KEY
+  lein upload-easel-app
+  lein figwheel
+  < edit app code >
+  lein release-easel-app # excludes the figwheel stuff
+
+Issues:
+
+  How do we get all the dependent files into the app? Figwheel expects the optimization level to be nil or none, but doing so creates an undetermined number of files. Can we depend on the figwheel server to provide them?
+
+Or we could just not use fighweel - and then just use advanced optimiations to produce a single file?
+
+ -- Ideally, we'll have some file we can use as a shim, and then another file that is part of the project build output that can be reloaded to facilitate rapid development.
+
+
+Possibilities:
+
+Override the Google Closure behavior to load javascript from a zip file (or some collection of files) that can be generated and uploaded by leiningen, and then use Figwheel to update those files as necessary.
+
+   - see goog.basePath in base.js
+
+ --- actually, see goog.global.CLOSURE_IMPORT_SCRIPT.
+
+
+
+Current Steps:
+
+ Create a new app in the site
+ Upload base.js and cljs_deps.js to the app 
+
+
+
+Assumptions about Easel:
+
+ - external dependencies load in the order in which they are listed (were added)
