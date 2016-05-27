@@ -30,6 +30,13 @@
 (defn- size-arg [js-args]
   (aget js-args "params" "Size"))
 
+(defn- selected-volume-ids-arg [js-args]
+  (js->clj (aget js-args "selectedVolumeIds")))
+
+(defn- volumes-arg [js-args]
+  (clojure.walk/keywordize-keys
+   (js->clj (aget js-args "volumes"))))
+
 (defn- random-depth [material-thickness]
   (* material-thickness
      (/ (.ceil js/Math (* 8 (rand))) 16)))
@@ -98,13 +105,44 @@
         circles (build-circles rectangle material-thickness quantity size-param)]
     (into [rectangle] (intersect rectangle circles))))
 
+(defn- selected-volumes [input-volumes selected-volume-ids]
+  (let [vids (set selected-volume-ids)]
+    (filter (fn[v] (vids (:id v))) input-volumes)))
+
+(defn- generate-circles-within-selected-shapes [material-thickness
+                                                quantity
+                                                size-param
+                                                input-volumes
+                                                selected-volume-ids]
+  (mapcat (fn[vol]
+            (let [circles (build-circles vol
+                                         material-thickness
+                                         quantity
+                                         size-param)
+                  updated-volume (assoc vol :cut (merge (:cut vol)
+                                                  {:type "outline"
+                                                   :outlineStyle "outside"}))]
+
+             (into [updated-volume] (intersect vol circles))))
+          (selected-volumes input-volumes selected-volume-ids)))
+
 (defn load-properties []
   (clj->js [quantity-property size-property]))
 
 (defn executor [js-args js-success js-failure]
-  (let [ret (clj->js (generate-circles-within-canned-rectangle
-                      (material-depth js-args)
-                      (quantity-arg js-args)
-                      (size-arg js-args)))]
-    (.log js/console ret)
+  (let [selected-volume-ids (selected-volume-ids-arg js-args)
+        depth (material-depth js-args)
+        quantity (quantity-arg js-args)
+        size (size-arg js-args)
+        ret (clj->js (if (< 0 (count selected-volume-ids))
+                       (generate-circles-within-selected-shapes
+                        depth
+                        quantity
+                        size
+                        (volumes-arg js-args)
+                        selected-volume-ids)
+                       (generate-circles-within-canned-rectangle
+                        depth
+                        quantity
+                        size)))]
     (js-success ret)))
