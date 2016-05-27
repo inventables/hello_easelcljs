@@ -10,6 +10,13 @@
       js->clj
       clojure.walk/keywordize-keys))
 
+(defn volume-intersection [vol-a vol-b]
+  (clojure.walk/keywordize-keys
+   (js->clj
+    ((aget js/EASEL "volumeHelper" "intersect")
+     (clj->js [vol-a])
+     (clj->js [vol-b])))))
+
 (defn- bounding-box [volume]
   (clojure.walk/keywordize-keys
    (js->clj ((aget js/EASEL "volumeHelper" "boundingBox")  (clj->js [volume])))))
@@ -51,7 +58,6 @@
 (defn random-size-within [constraining-volume size-param]
   (let [bb (bounding-box constraining-volume)
         max-size (min (:width bb) (:height bb))]
-    (.log js/console "Bounding Box is " (clj->js bb))
     (* (rand) max-size (/ size-param 100))))
 
 (defn- build-circles [constraining-volume
@@ -77,7 +83,13 @@
    (range quantity)))
 
 (defn intersect [design-volume circle-volumes]
-  circle-volumes)
+  (->> circle-volumes
+       (map (fn[v]
+              (let [clipped (volume-intersection design-volume v)]
+                (if (nil? clipped)
+                  nil
+                  (assoc clipped :cut (:cut v))))))
+       (filter (complement nil?))))
 
 (defn- generate-circles-within-canned-rectangle [material-thickness
                                                  quantity
@@ -94,6 +106,5 @@
                       (material-depth js-args)
                       (quantity-arg js-args)
                       (size-arg js-args)))]
-    (.log js/console "Size is " (aget js-args "params" "Size"))
     (.log js/console ret)
     (js-success ret)))
